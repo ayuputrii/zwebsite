@@ -1,5 +1,5 @@
 {
-  "name": "zwallet-server",
+  "name": "zwebsite",
   "version": "1.0.0",
   "description": "",
   "engines": {
@@ -10,7 +10,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
-  "author": "Rizky Agung",
+  "author": "Ayu Armadani Putri Mahirun",
   "license": "ISC",
   "dependencies": {
     "aws-sdk": "^2.783.0",
