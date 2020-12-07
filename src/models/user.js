@@ -1,138 +1,83 @@
-const bcrypt = require("bcrypt");
-const userModels = require("../models/user");
-const { checkUser } = require("../models/auth");
-const {
-  updateHistoryReceiver,
-  updateHistorySender,
-} = require("../models/transfer");
-const { response } = require("../helpers");
-const cloudinary = require("../helpers/cloudinary");
+const db = require("../config/mysql");
 
 module.exports = {
-  searchAll: async function (req, res) {
-    try {
-      const { id } = req.token;
-      const result = await userModels.searchAll(id);
-      response(res, 200, result);
-    } catch (error) {
-      response(res, 500, { message: error.message });
-    }
-  },
-  searchOneById: async function (req, res) {
-    try {
-      const { phone } = req.query;
-      const { id } = req.token;
-      const result = await userModels.searchOneById(phone, id);
-      response(res, 200, result);
-    } catch (error) {
-      response(res, 500, { message: error.message });
-    }
-  },
-  searchByName: async function (req, res) {
-    try {
-      const { q } = req.query;
-      const { id } = req.token;
-      const result = await userModels.searchByName(id, q);
-      response(res, 200, result);
-    } catch (error) {
-      response(res, 500, { message: error.message });
-    }
-  },
-  getAllUser: async function (req, res) {
-    try {
-      const result = await userModels.getAllUser();
-      response(res, 200, result);
-    } catch (error) {
-      response(res, 500, { message: error.message });
-    }
-  },
-  getUserLogin: async function (req, res) {
-    try {
-      const { id, name } = req.token;
-      const result = await userModels.getUserLogin(id);
-      let firstName;
-      let lastName;
-      if (result[0].name.split(" ").length > 1) {
-        const separateName = result[0].name.split(" ");
-        const [first, ...last] = separateName;
-        firstName = first;
-        lastName = last.join(" ");
-      } else {
-        firstName = result[0].name;
-        lastName = " ";
-      }
-      result[0].firstName = firstName;
-      result[0].lastName = lastName;
-      response(res, 200, result);
-    } catch (error) {
-      response(res, 500, { message: error.message });
-    }
-  },
-  editUser: async function (req, res) {
-    try {
-      const { id } = req.token;
-      const setData = req.body;
-      if (req.file) {
-        const image = await cloudinary.uploader.upload(req.file.path);
-        setData.photo = image.secure_url;
-        await updateHistorySender({ photo_sender: image.secure_url }, id);
-        await updateHistoryReceiver({ photo: image.secure_url }, id);
-      }
-
-      if (req.body.name) {
-        await updateHistorySender({ sender: req.body.name }, id);
-        await updateHistoryReceiver({ receiver: req.body.name }, id);
-      }
-
-      if (setData.currPassword && setData.password) {
-        const result = await checkUser(req.token);
-        const check = bcrypt.compareSync(
-          setData.currPassword,
-          result[0].password
-        );
-        if (check) {
-          const salt = bcrypt.genSaltSync(10);
-          const hash = bcrypt.hashSync(setData.password, salt);
-          setData.password = hash;
-          delete setData.currPassword;
-        } else {
-          res.status(403).send({
-            message: `Invalid Password`,
-          });
+  searchAll: function (id) {
+    return new Promise((resolve, reject) => {
+      db.query(
+        "SELECT name, phone, photo, balance FROM users WHERE id <> ? AND role <> 6 ORDER BY name ASC",
+        id,
+        (err, result) => {
+          if (!err) {
+            resolve(result);
+          } else {
+            reject(new Error(err));
+          }
         }
-      }
-
-      const result = await userModels.editUser(id, setData);
-      if (result.affectedRows) {
-        const result = await userModels.getUserLogin(req.token.id);
-        res.status(201).send({
-          message: `${Object.keys(req.file || req.body)} successfully edited`,
-          data: result,
-        });
-      }
-    } catch (error) {
-      console.log(error);
-      res.status(500).send({
-        message: `${Object.keys(req.file || req.body)} failed to edit : ${
-          error.message
-        }`,
-      });
-    }
+      );
+    });
   },
-  checkPin: async function (req, res) {
-    try {
-      const { pin } = req.body;
-      if (pin.length !== 6) {
-        return res.send("PIN must be full filled");
-      }
-      const result = await checkUser(req.token);
-      if (result[0].pin == pin) {
-        res.send("OK");
-      } else {
-        res.send("Invalid PIN");
-      }
-    } catch (error) {
-      res.send(error.message);
-    }
+  searchOneById: function (phone, token_id) {
+    return new Promise((resolve, reject) => {
+      db.query(
+        `SELECT name, phone, photo, balance FROM users WHERE phone=${phone} AND role <> 6 AND id <> ${token_id}`,
+        (err, result) => {
+          if (!err) {
+            resolve(result);
+          } else {
+            reject(new Error(err));
+          }
+        }
+      );
+    });
+  },
+  searchByName: function (id, name) {
+    return new Promise((resolve, reject) => {
+      db.query(
+        `SELECT name, phone, photo, balance FROM users WHERE name LIKE '%${name}%' AND id <> ${id} AND role <> 6 ORDER BY name ASC`,
+        (err, result) => {
+          if (!err) {
+            resolve(result);
+          } else {
+            reject(new Error(err));
+          }
+        }
+      );
+    });
+  },
+  getAllUser: function () {
+    return new Promise((resolve, reject) => {
+      db.query("SELECT * FROM users", (err, result) => {
+        if (!err) {
+          resolve(result);
+        } else {
+          reject(new Error(err));
+        }
+      });
+    });
+  },
+  getUserLogin: function (id) {
+    return new Promise((resolve, reject) => {
+      db.query(
+        `SELECT name, email, photo, phone, balance, verified FROM users WHERE id=${id}`,
+        (err, result) => {
+          if (!err) {
+            resolve(result);
+          } else {
+            reject(new Error(err));
+          }
+        }
+      );
+    });
+  },
+  editUser: function (id, setData) {
+    return new Promise((resolve, reject) => {
+      db.query(`UPDATE users SET ? WHERE id=${id}`, setData, (err, result) => {
+        if (!err) {
+          resolve(result);
+        } else {
+          reject(new Error(err));
+        }
+      });
+    });
   },
 };
