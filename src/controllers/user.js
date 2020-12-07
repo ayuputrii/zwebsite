@@ -6,7 +6,7 @@ const {
   updateHistorySender,
 } = require("../models/transfer");
 const { response } = require("../helpers");
-const cloudinary = require("../../helpers/cloudinary");
+const cloudinary = require("../helpers/cloudinary");
 
 module.exports = {
   searchAll: async function (req, res) {
