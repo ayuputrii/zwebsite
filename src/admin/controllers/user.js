@@ -1,7 +1,11 @@
 const bcrypt = require("bcrypt");
 const userModels = require("../models/user");
-const { updateHistoryReceiver, updateHistorySender} = require('../../models/transfer')
+const {
+  updateHistoryReceiver,
+  updateHistorySender,
+} = require("../../models/transfer");
 const { response } = require("../../helpers");
+const cloudinary = require("../../helpers/cloudinary");
 
 module.exports = {
   getAllUser: async (req, res) => {
@@ -30,14 +34,15 @@ module.exports = {
       const setData = req.body;
 
       if (req.file) {
-        setData.photo = req.file.filename;
-        await updateHistorySender({photo_sender: req.file.filename}, id)
-        await updateHistoryReceiver({ photo: req.file.filename}, id)
+        const image = await cloudinary.uploader.upload(req.file.path);
+        setData.photo = image.secure_url;
+        await updateHistorySender({ photo_sender: image.secure_url }, id);
+        await updateHistoryReceiver({ photo: image.secure_url }, id);
       }
 
-      if(req.body.name) {
-        await updateHistorySender({sender: req.body.name}, id)
-        await updateHistoryReceiver({receiver: req.body.name}, id)
+      if (req.body.name) {
+        await updateHistorySender({ sender: req.body.name }, id);
+        await updateHistoryReceiver({ receiver: req.body.name }, id);
       }
 
       if (setData.password) {
