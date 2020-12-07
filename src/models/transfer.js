@@ -22,7 +22,7 @@ module.exports = {
         (err, res) => {
           if (!err) {
             db.query(
-              `SELECT amount, name FROM transactions WHERE id_user=${id} ORDER BY createdAt DESC`,
+              `SELECT amount, name FROM transaction WHERE id_user=${id} ORDER BY createdAt DESC`,
               (error, result) => {
                 if (!error) {
                   const newData = [...result, ...res];
